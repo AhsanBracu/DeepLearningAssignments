@@ -5,13 +5,20 @@ import matplotlib.pyplot as plt
 # ── Paths ──────────────────────────────────────────────────────────────────
 DATASET_PATH = 'Datasets/cifar-10-batches-py/'
 
+# ══════════════════════════════════════════════════════════════════════════
+# Background 3 — display 5 training images (exactly as assignment suggests)
+# ══════════════════════════════════════════════════════════════════════════
+
 # Load a batch of training data
 with open(DATASET_PATH + 'data_batch_1', 'rb') as fo:
     dict = pickle.load(fo, encoding='bytes')
 
+# Extract the image data and cast to float from the dict dictionary
 X = dict[b'data'].astype(np.float64) / 255.0
 X = X.transpose()
 nn = X.shape[1]
+
+# Reshape each image from a column vector to a 3d array
 X_im = X.reshape((32, 32, 3, nn), order='F')
 X_im = np.transpose(X_im, (1, 0, 2, 3))
 
@@ -30,13 +37,26 @@ plt.show()
 def LoadBatch(filename):
     """
     Read a CIFAR-10 batch file and return image data, one-hot labels, labels.
+
+    Returns:
+        X -- pixel data,   shape (d, n) = (3072, 10000), dtype float64, range [0,1]
+        Y -- one-hot labels shape (K, n) = (10, 10000),  dtype float64
+        y -- raw labels,   shape (n,)   = (10000,),      dtype int
     """
     with open(DATASET_PATH + filename, 'rb') as fo:
         batch = pickle.load(fo, encoding='bytes')
 
+    # ── X: pixel data ──────────────────────────────────────────────────
+    # batch[b'data'] is (n, d) = (10000, 3072), values 0-255
+    # transpose to (d, n) and normalise to [0.0, 1.0]
     X = batch[b'data'].T.astype(np.float64) / 255.0  # shape (3072, 10000)
+
+    # ── y: raw integer labels ───────────────────────────────────────────
+    # list of n integers, each between 0 and 9
     y = np.array(batch[b'labels'])                    # shape (10000,)
 
+    # ── Y: one-hot encoding ─────────────────────────────────────────────
+    # K x n matrix — Y[k, i] = 1 if image i belongs to class k
     K = 10
     n = X.shape[1]
     Y = np.zeros((K, n), dtype=np.float64)            # shape (10, 10000)
@@ -45,7 +65,7 @@ def LoadBatch(filename):
     return X, Y, y
 
 
-# ── Used data from these three files for full project─────────
+# ── Top-level: load training, validation and test data ─────────────────────
 X_train, Y_train, y_train = LoadBatch('data_batch_1')
 X_val,   Y_val,   y_val   = LoadBatch('data_batch_2')
 X_test,  Y_test,  y_test  = LoadBatch('test_batch')
@@ -65,11 +85,21 @@ print('y range:  min =', y_train.min(), ' max =', y_train.max(), '  expected: 0 
 
 def NormalizeData(X_train, X_val, X_test):
     """
-    Shape the data according to the assignement requirements.
+    Normalize training, validation and test data using training statistics.
+
+    Steps:
+        1. Compute mean and std from training data only (axis=1 — per pixel row)
+        2. Subtract mean and divide by std for all three sets
+
+    Returns:
+        X_train, X_val, X_test — all normalized
+        mean_X, std_X          — training statistics (d x 1 each)
     """
+    # compute mean and std per pixel row — shape (3072, 1)
     mean_X = np.mean(X_train, axis=1).reshape(-1, 1)
     std_X  = np.std(X_train,  axis=1).reshape(-1, 1)
 
+    # normalize all three sets using TRAINING statistics
     X_train = (X_train - mean_X) / std_X
     X_val   = (X_val   - mean_X) / std_X
     X_test  = (X_test  - mean_X) / std_X
@@ -121,7 +151,7 @@ print('b values:', init_net['b'].T,               '  expected: all zeros')
 # ══════════════════════════════════════════════════════════════════════════
 
 def softmax(s):
-    """Get probability ."""
+    """Convert scores to probabilities. Numerically stable version."""
     # subtract max to prevent overflow — does not change result
     e = np.exp(s - np.max(s, axis=0))
     return e / np.sum(e, axis=0)
@@ -129,13 +159,25 @@ def softmax(s):
 
 def ApplyNetwork(X, network):
     """
-    use  s = Wx + b
-    """
-    W = network['W'] 
-    b = network['b'] 
+    Apply the network to input X and return probabilities P.
 
-    s = W @ X + b 
-    P = softmax(s) 
+    Equations:
+        s = Wx + b      (1) — compute scores
+        p = softmax(s)  (2) — convert to probabilities
+
+    Args:
+        X       -- input images,  shape (d, n) = (3072, n)
+        network -- dictionary with keys 'W' (K×d) and 'b' (K×1)
+
+    Returns:
+        P -- probabilities, shape (K, n) = (10, n)
+             each column sums to 1.0
+    """
+    W = network['W']   # (K, d) = (10, 3072)
+    b = network['b']   # (K, 1) = (10, 1)
+
+    s = W @ X + b      # (10, 3072) @ (3072, n) + (10, 1) = (10, n)
+    P = softmax(s)     # (10, n) — probabilities between 0 and 1
 
     return P
 
@@ -156,13 +198,26 @@ print('P col 99 sum:  ', P[:, 99].sum().round(6), '  expected: 1.0')
 
 def ComputeLoss(P, y):
     """
-    Compute mean cross-entropy loss.
+    Compute mean cross-entropy loss over a batch of images.
+
+    Formula: L = (1/n) * sum(-log(p_y))
+    p_y = probability the model gave to the true class of each image
+
+    Args:
+        P -- probabilities, shape (K, n) = (10, n)
+        y -- true labels,   shape (n,)   integers 0-9
+
+    Returns:
+        L -- scalar, mean cross-entropy loss
     """
     n = P.shape[1]
-    probes_n = P[y, np.arange(n)]   # shape (n,)
+
+    # pick the probability of the true class for each image
+    # P[y, np.arange(n)] picks P[y[0],0], P[y[1],1], ..., P[y[n-1],n-1]
+    correct_class_probs = P[y, np.arange(n)]   # shape (n,)
 
     # cross-entropy loss = -log of those probabilities, averaged
-    L = -np.sum(np.log(probes_n)) / n
+    L = -np.sum(np.log(correct_class_probs)) / n
 
     return L
 
@@ -182,10 +237,23 @@ print('Expected: close to log(10) =', np.log(10).round(6),
 
 def ComputeAccuracy(P, y):
     """
-    Compute the accuracy - get maximum probability.
+    Compute the accuracy of the network's predictions.
+
+    Equation (4): predicted class = argmax of probabilities per image
+    Accuracy = percentage of images where predicted class == true class
+
+    Args:
+        P -- probabilities, shape (K, n) = (10, n)
+        y -- true labels,   shape (n,)   integers 0-9
+
+    Returns:
+        acc -- scalar, percentage of correct predictions (0.0 to 1.0)
     """
-    predicted = np.argmax(P, axis=0) 
-    acc = np.mean(predicted == y)   
+    # argmax along axis=0 — find highest prob class for each image (column)
+    predicted = np.argmax(P, axis=0)   # shape (n,)
+
+    # compare predicted class with true class
+    acc = np.mean(predicted == y)      # fraction of correct predictions
 
     return acc
 
@@ -205,18 +273,38 @@ print('Expected: ~0.10 (10%) — random model guesses 1 out of 10 classes correc
 def BackwardPass(X, Y, P, network, lam):
     """
     Compute gradients of cost J w.r.t. W and b.
+
+    Equations (10, 11):
+        grad_W = (1/n) * G @ X.T  +  2*lam*W
+        grad_b = (1/n) * sum(G, axis=1)
+
+    Args:
+        X       -- input images,      shape (d, n)
+        Y       -- one-hot labels,    shape (K, n)
+        P       -- predicted probs,   shape (K, n)
+        network -- dictionary with W (K×d) and b (K×1)
+        lam     -- regularization parameter λ
+
+    Returns:
+        grads -- dictionary with keys 'W' (K×d) and 'b' (K×1)
     """
     n = X.shape[1]        # number of images
-    W = network['W']   
+    W = network['W']      # (K, d)
+
+    # ── Part 1: error matrix G = P - Y ───────────────────────────────
+    # shape (K, n) = (10, n)
     G = P - Y
 
-    # gradients ───
-    grad_W = G @ X.T / n + 2 * lam * W 
+    # ── Part 2: gradients ─────────────────────────────────────────────
+    # grad_W — equation (10)
+    # (K×n) @ (n×d) = (K×d) then average and add regularization
+    grad_W = G @ X.T / n + 2 * lam * W   # shape (K, d) = (10, 3072)
 
-    # b vector
-    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n   #  (10, 1)
+    # grad_b — equation (11)
+    # sum G across columns (images), average, make column vector
+    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n   # shape (K, 1) = (10, 1)
 
-    # dictionarty to hold gradients
+    # store in dictionary — keys match network dictionary
     grads = {}
     grads['W'] = grad_W
     grads['b'] = grad_b
@@ -275,7 +363,8 @@ def ComputeGradsWithTorchLam(X, y, network_params, lam):
 
 def ComputeRelativeError(ga, gn, eps=1e-10):
     """
-   Compare code results with PyTorch results. Returns relative error — should be < 1e-6.
+    Relative error between analytical (ga) and numerical/torch (gn) gradients.
+    Should be < 1e-6 to be considered correct.
     """
     return np.max(np.abs(ga - gn) / np.maximum(eps, np.abs(ga) + np.abs(gn)))
 
@@ -334,7 +423,24 @@ import copy
 def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
     """
     Train the network using mini-batch gradient descent.
-    after each epoch, compute and save training and validation loss for plotting.
+
+    Args:
+        X        -- training images,   shape (d, n)
+        Y        -- one-hot labels,    shape (K, n)
+        X_val    -- validation images, shape (d, n_val)
+        Y_val    -- validation labels, shape (K, n_val)
+        GDparams -- dictionary with keys:
+                      n_batch  — mini-batch size
+                      eta      — learning rate
+                      n_epochs — number of epochs
+        init_net -- dictionary with keys 'W' and 'b' (initial parameters)
+        lam      -- regularization parameter λ
+        rng      -- random number generator (for reproducibility)
+
+    Returns:
+        trained_net  -- dictionary with keys 'W' and 'b' (trained parameters)
+        train_losses -- list of training loss after each epoch
+        val_losses   -- list of validation loss after each epoch
     """
     # deep copy so init_net is not modified
     trained_net = copy.deepcopy(init_net)
