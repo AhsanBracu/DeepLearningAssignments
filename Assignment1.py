@@ -437,3 +437,214 @@ print('Relative error grad_W:', err_W_reg, '  expected: < 1e-6')
 print('Relative error grad_b:', err_b_reg, '  expected: < 1e-6')
 print('grad_W OK:', err_W_reg < 1e-6)
 print('grad_b OK:', err_b_reg < 1e-6)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Exercise 1.8 — MiniBatchGD (Part 1: function signature + setup)
+# ══════════════════════════════════════════════════════════════════════════
+ 
+import copy
+ 
+def MiniBatchGD(X, Y, GDparams, init_net, lam, rng):
+    """
+    Train the network using mini-batch gradient descent.
+ 
+    Args:
+        X        -- training images,  shape (d, n)
+        Y        -- one-hot labels,   shape (K, n)
+        GDparams -- dictionary with keys:
+                      n_batch  — mini-batch size
+                      eta      — learning rate
+                      n_epochs — number of epochs
+        init_net -- dictionary with keys 'W' and 'b' (initial parameters)
+        lam      -- regularization parameter λ
+        rng      -- random number generator (for reproducibility)
+ 
+    Returns:
+        trained_net -- dictionary with keys 'W' and 'b' (trained parameters)
+    """
+    # deep copy so init_net is not modified
+    trained_net = copy.deepcopy(init_net)
+ 
+    # unpack parameters
+    n_batch  = GDparams['n_batch']
+    eta      = GDparams['eta']
+    n_epochs = GDparams['n_epochs']
+ 
+    n = X.shape[1]   # number of training images
+ 
+    return trained_net   # temporary — will add training loop next
+ 
+ 
+# ── Quick check: function runs and returns correct shapes ──────────────────
+GDparams = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 20}
+trained_net = MiniBatchGD(X_train, Y_train, GDparams, init_net, lam=0, rng=rng)
+ 
+print('\n--- MiniBatchGD Part 1: setup ---')
+print('trained_net W shape:', trained_net['W'].shape, '  expected: (10, 3072)')
+print('trained_net b shape:', trained_net['b'].shape, '  expected: (10, 1)')
+print('init_net unchanged: ', np.allclose(init_net['W'], trained_net['W']), '  expected: True (deep copy)')
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Exercise 1.8 — MiniBatchGD (Part 1: function signature + setup)
+# ══════════════════════════════════════════════════════════════════════════
+ 
+import copy
+ 
+def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
+    """
+    Train the network using mini-batch gradient descent.
+ 
+    Args:
+        X        -- training images,   shape (d, n)
+        Y        -- one-hot labels,    shape (K, n)
+        X_val    -- validation images, shape (d, n_val)
+        Y_val    -- validation labels, shape (K, n_val)
+        GDparams -- dictionary with keys:
+                      n_batch  — mini-batch size
+                      eta      — learning rate
+                      n_epochs — number of epochs
+        init_net -- dictionary with keys 'W' and 'b' (initial parameters)
+        lam      -- regularization parameter λ
+        rng      -- random number generator (for reproducibility)
+ 
+    Returns:
+        trained_net  -- dictionary with keys 'W' and 'b' (trained parameters)
+        train_losses -- list of training loss after each epoch
+        val_losses   -- list of validation loss after each epoch
+    """
+    # deep copy so init_net is not modified
+    trained_net = copy.deepcopy(init_net)
+ 
+    # unpack parameters
+    n_batch  = GDparams['n_batch']
+    eta      = GDparams['eta']
+    n_epochs = GDparams['n_epochs']
+ 
+    n = X.shape[1]   # number of training images
+ 
+    # lists to track loss history for plotting
+    train_losses = []
+    val_losses   = []
+ 
+    # ── loop over epochs ──────────────────────────────────────────────
+    for epoch in range(n_epochs):
+ 
+        # shuffle training data at start of each epoch
+        indices    = rng.permutation(n)
+        X_shuffled = X[:, indices]
+        Y_shuffled = Y[:, indices]
+ 
+        # loop over mini-batches
+        for j in range(n // n_batch):
+            j_start = j * n_batch
+            j_end   = (j + 1) * n_batch
+ 
+            X_batch = X_shuffled[:, j_start:j_end]   # (d, n_batch)
+            Y_batch = Y_shuffled[:, j_start:j_end]   # (K, n_batch)
+ 
+            # forward pass
+            P_batch = ApplyNetwork(X_batch, trained_net)
+ 
+            # backward pass
+            grads = BackwardPass(X_batch, Y_batch, P_batch, trained_net, lam)
+ 
+            # update W and b — equations (8, 9)
+            trained_net['W'] -= eta * grads['W']
+            trained_net['b'] -= eta * grads['b']
+ 
+        # ── compute and save loss after each epoch ─────────────────────
+        # training loss
+        P_train    = ApplyNetwork(X, trained_net)
+        train_loss = ComputeLoss(P_train, np.argmax(Y, axis=0))
+        train_cost = train_loss + lam * np.sum(trained_net['W'] ** 2)
+ 
+        # validation loss
+        P_val    = ApplyNetwork(X_val, trained_net)
+        val_loss = ComputeLoss(P_val, np.argmax(Y_val, axis=0))
+        val_cost = val_loss + lam * np.sum(trained_net['W'] ** 2)
+ 
+        # save for plotting
+        train_losses.append(train_cost)
+        val_losses.append(val_cost)
+ 
+        print(f'Epoch {epoch+1}/{n_epochs} — train loss: {train_cost:.4f}  val loss: {val_cost:.4f}')
+ 
+    return trained_net, train_losses, val_losses
+ 
+ 
+# ── Top-level: train with assignment parameters ───────────────────────────
+GDparams = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
+ 
+# reset seed so results match assignment expected values
+rng.bit_generator.state = BitGen(seed).state
+init_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
+init_net['b'] = np.zeros((K, 1))
+ 
+print('\n--- MiniBatchGD training (n_batch=100, eta=0.001, n_epochs=20, lam=0) ---')
+trained_net, train_losses, val_losses = MiniBatchGD(
+    X_train, Y_train, X_val, Y_val, GDparams, init_net, lam=0, rng=rng)
+ 
+# final accuracy on test set
+P_test   = ApplyNetwork(X_test, trained_net)
+acc_test = ComputeAccuracy(P_test, y_test)
+print(f'\nTest accuracy: {acc_test:.4f}  expected: ~0.35')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Plotting — loss curves and W visualization
+# ══════════════════════════════════════════════════════════════════════════
+ 
+def PlotLossCurves(train_losses, val_losses, title=''):
+    """
+    Plot training and validation loss curves after each epoch.
+    Matches Figure 3 in the assignment.
+    """
+    epochs = range(1, len(train_losses) + 1)
+ 
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, train_losses, label='training loss')
+    plt.plot(epochs, val_losses,   label='validation loss', color='red')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
+def VisualizeWeights(trained_net, title=''):
+    """
+    Visualize each row of W as a class template image.
+    Follows assignment code exactly.
+    """
+    # rearrange W rows into displayable images — exactly as assignment says
+    Ws   = trained_net['W'].transpose().reshape((32, 32, 3, 10), order='F')
+    W_im = np.transpose(Ws, (1, 0, 2, 3))
+ 
+    fig, axs = plt.subplots(2, 5, figsize=(12, 5))
+    classes  = ['airplane', 'car', 'bird', 'cat', 'deer',
+                'dog', 'frog', 'horse', 'ship', 'truck']
+ 
+    for i in range(10):
+        w_im      = W_im[:, :, :, i]
+        w_im_norm = (w_im - np.min(w_im)) / (np.max(w_im) - np.min(w_im))
+        row, col  = i // 5, i % 5
+        axs[row, col].imshow(w_im_norm)
+        axs[row, col].set_title(classes[i])
+        axs[row, col].axis('off')
+        # save each class template image as assignment suggests
+        plt.imsave(f'w_class_{classes[i]}_{title}.png', w_im_norm)
+ 
+    plt.suptitle(title)
+    plt.tight_layout()
+    plt.show()
+ 
+# ── Plot results from our training run ────────────────────────────────────
+PlotLossCurves(train_losses, val_losses,
+               title='lam=0, eta=0.001, n_epochs=40, n_batch=100')
+VisualizeWeights(trained_net,
+                 title='Learned W — lam=0, eta=0.001, n_epochs=40')
