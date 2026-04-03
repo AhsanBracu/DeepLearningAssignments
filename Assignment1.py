@@ -549,3 +549,44 @@ for exp in experiments:
 print('\n--- Summary of all experiments ---')
 for exp, acc in results:
     print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
+
+
+def LoadAllBatches():
+    # load all 5 batches and concatenate
+    X_all, Y_all, y_all = [], [], []
+    for i in range(1, 6):
+        X, Y, y = LoadBatch(f'data_batch_{i}')
+        X_all.append(X)
+        Y_all.append(Y)
+        y_all.append(y)
+ 
+    X_all = np.concatenate(X_all, axis=1)   # (3072, 50000)
+    Y_all = np.concatenate(Y_all, axis=1)   # (10,   50000)
+    y_all = np.concatenate(y_all, axis=0)   # (50000,)
+ 
+    # first 1000 images → validation, rest → training
+    X_val_b   = X_all[:, :1000]
+    Y_val_b   = Y_all[:, :1000]
+    y_val_b   = y_all[:1000]
+    X_train_b = X_all[:, 1000:]
+    Y_train_b = Y_all[:, 1000:]
+    y_train_b = y_all[1000:]
+ 
+    # test data
+    X_test_b, Y_test_b, y_test_b = LoadBatch('test_batch')
+ 
+    # normalize using training statistics
+    X_train_b, X_val_b, X_test_b, _, _ = NormalizeData(X_train_b, X_val_b, X_test_b)
+ 
+    return X_train_b, Y_train_b, y_train_b, X_val_b, Y_val_b, y_val_b, X_test_b, Y_test_b, y_test_b
+ 
+ 
+# ── Load all batches ───────────────────────────────────────────────────────
+X_train_b, Y_train_b, y_train_b, \
+X_val_b,   Y_val_b,   y_val_b,   \
+X_test_b,  Y_test_b,  y_test_b   = LoadAllBatches()
+ 
+print('\n--- Bonus 2.1(a): All batches loaded ---')
+print('X_train_b shape:', X_train_b.shape, '  expected: (3072, 49000)')
+print('X_val_b   shape:', X_val_b.shape,   '  expected: (3072, 1000)')
+print('X_test_b  shape:', X_test_b.shape,  '  expected: (3072, 10000)')    
