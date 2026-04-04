@@ -23,50 +23,41 @@ for i in range(ni):
     axs[i].axis('off')
 plt.show()
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.1 — LoadBatch
-# ══════════════════════════════════════════════════════════════════════════
 
-def LoadBatch(filename):
-    """
-    Read a CIFAR-10 batch file and return image data, one-hot labels, labels.
-    """
+def loadBatch(filename):
     with open(DATASET_PATH + filename, 'rb') as fo:
         batch = pickle.load(fo, encoding='bytes')
 
-    X = batch[b'data'].T.astype(np.float64) / 255.0  # shape (3072, 10000)
-    y = np.array(batch[b'labels'])                    # shape (10000,)
+    X = batch[b'data'].T.astype(np.float64) / 255.0  
+    y = np.array(batch[b'labels'])                  
 
     K = 10
     n = X.shape[1]
-    Y = np.zeros((K, n), dtype=np.float64)            # shape (10, 10000)
-    Y[y, np.arange(n)] = 1                            # set correct class to 1
+    Y = np.zeros((K, n), dtype=np.float64)        
+    Y[y, np.arange(n)] = 1                            
 
     return X, Y, y
 
 
-# ── Used data from these three files for full project─────────
-X_train, Y_train, y_train = LoadBatch('data_batch_1')
-X_val,   Y_val,   y_val   = LoadBatch('data_batch_2')
-X_test,  Y_test,  y_test  = LoadBatch('test_batch')
+#  Used data from these three files for full project
+X_train, Y_train, y_train = loadBatch('data_batch_1')
+X_val,   Y_val,   y_val   = loadBatch('data_batch_2')
+X_test,  Y_test,  y_test  = loadBatch('test_batch')
 
-# ── Sanity checks ──────────────────────────────────────────────────────────
-print('X_train shape:', X_train.shape, '  expected: (3072, 10000)')
-print('Y_train shape:', Y_train.shape, '  expected: (10,   10000)')
-print('y_train shape:', y_train.shape, '  expected: (10000,)')
-print('X dtype:',       X_train.dtype, '  expected: float64')
-print('Y dtype:',       Y_train.dtype, '  expected: float64')
-print('X range:  min =', X_train.min(), ' max =', X_train.max(), '  expected: 0.0 to 1.0')
-print('y range:  min =', y_train.min(), ' max =', y_train.max(), '  expected: 0 to 9')
+# check data
+print('X_train shape:', X_train.shape, '  correct: (3072, 10000)')
+print('Y_train shape:', Y_train.shape, '  correct: (10,   10000)')
+print('y_train shape:', y_train.shape, '  correct: (10000,)')
+print('X dtype:',       X_train.dtype, '  correct: float64')
+print('Y dtype:',       Y_train.dtype, '  correct: float64')
+print('X range:  min =', X_train.min(), ' max =', X_train.max(), '  correct: 0.0 to 1.0')
+print('y range:  min =', y_train.min(), ' max =', y_train.max(), '  correct: 0 to 9')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.2 — Normalize data
-# ══════════════════════════════════════════════════════════════════════════
 
-def NormalizeData(X_train, X_val, X_test):
-    """
-    Shape the data according to the assignement requirements.
-    """
+def normalizeData(X_train, X_val, X_test):
+
     mean_X = np.mean(X_train, axis=1).reshape(-1, 1)
     std_X  = np.std(X_train,  axis=1).reshape(-1, 1)
 
@@ -77,27 +68,24 @@ def NormalizeData(X_train, X_val, X_test):
     return X_train, X_val, X_test, mean_X, std_X
 
 
-# ── Top-level: normalize training, validation and test data ───────────────
-X_train, X_val, X_test, mean_X, std_X = NormalizeData(X_train, X_val, X_test)
+# After normalizeing
+X_train, X_val, X_test, mean_X, std_X = normalizeData(X_train, X_val, X_test)
 
-# ── Sanity checks ──────────────────────────────────────────────────────────
+# check 1.2
 print('\n--- After normalization ---')
 print('X_train mean (should be ~0):', np.mean(X_train).round(6))
 print('X_train std  (should be ~1):', np.std(X_train).round(6))
 print('X_val   mean (close to 0):  ', np.mean(X_val).round(6))
 print('X_test  mean (close to 0):  ', np.mean(X_test).round(6))
-print('mean_X shape:', mean_X.shape, '  expected: (3072, 1)')
-print('std_X  shape:', std_X.shape,  '  expected: (3072, 1)')
+print('mean_X shape:', mean_X.shape, '  correct: (3072, 1)')
+print('std_X  shape:', std_X.shape,  '  correct: (3072, 1)')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.3 — Initialize network parameters W and b
-# ══════════════════════════════════════════════════════════════════════════
 
-# K = number of classes, d = number of pixel features
 K = 10
-d = X_train.shape[0]   # 3072
+d = X_train.shape[0]  
 
-# set up reproducible random number generator (seed=42 as assignment suggests)
+# seed=42 as assignment suggests)
 rng = np.random.default_rng()
 BitGen = type(rng.bit_generator)
 seed = 42
@@ -105,30 +93,26 @@ rng.bit_generator.state = BitGen(seed).state
 
 # store W and b in a dictionary
 init_net = {}
-init_net['W'] = 0.01 * rng.standard_normal(size=(K, d))  # (10, 3072) Gaussian, std=0.01
-init_net['b'] = np.zeros((K, 1))                          # (10, 1)    all zeros
+init_net['W'] = 0.01 * rng.standard_normal(size=(K, d))  
+init_net['b'] = np.zeros((K, 1))                        
 
-# ── Sanity checks ──────────────────────────────────────────────────────────
+# check 1.3
 print('\n--- Network initialization ---')
-print('W shape:', init_net['W'].shape, '  expected: (10, 3072)')
-print('b shape:', init_net['b'].shape, '  expected: (10, 1)')
-print('W mean: ', init_net['W'].mean().round(6), '  expected: ~0')
-print('W std:  ', init_net['W'].std().round(6),  '  expected: ~0.01')
-print('b values:', init_net['b'].T,               '  expected: all zeros')
+print('W shape:', init_net['W'].shape, '  correct: (10, 3072)')
+print('b shape:', init_net['b'].shape, '  correct: (10, 1)')
+print('W mean: ', init_net['W'].mean().round(6), '  correct: ~0')
+print('W std:  ', init_net['W'].std().round(6),  '  correct: ~0.01')
+print('b values:', init_net['b'].T,               '  correct: all zeros')
 
 # Exercise 1.4 — ApplyNetwork
 
 def softmax(s):
-    """Get probability ."""
     # subtract max to prevent overflow — does not change result
     e = np.exp(s - np.max(s, axis=0))
     return e / np.sum(e, axis=0)
 
 
-def ApplyNetwork(X, network):
-    """
-    use  s = Wx + b
-    """
+def applyNetwork(X, network):
     W = network['W'] 
     b = network['b'] 
 
@@ -137,25 +121,20 @@ def ApplyNetwork(X, network):
 
     return P
 
-
-# ── Top-level: check on first 100 training images ─────────────────────────
-P = ApplyNetwork(X_train[:, 0:100], init_net)
+P = applyNetwork(X_train[:, 0:100], init_net)
 
 print('\n--- ApplyNetwork ---')
-print('P shape:       ', P.shape,         '  expected: (10, 100)')
-print('P min:         ', P.min().round(6), '  expected: > 0')
-print('P max:         ', P.max().round(6), '  expected: < 1')
-print('P col 0 sum:   ', P[:, 0].sum().round(6), '  expected: 1.0')
-print('P col 99 sum:  ', P[:, 99].sum().round(6), '  expected: 1.0')
+print('P shape:       ', P.shape,         '  correct: (10, 100)')
+print('P min:         ', P.min().round(6), '  correct: > 0')
+print('P max:         ', P.max().round(6), '  correct: < 1')
+print('P col 0 sum:   ', P[:, 0].sum().round(6), '  correct: 1.0')
+print('P col 99 sum:  ', P[:, 99].sum().round(6), '  correct: 1.0')
 
 # Exercise 1.5 — ComputeLoss
 
-def ComputeLoss(P, y):
-    """
-    Compute mean cross-entropy loss.
-    """
+def computeLoss(P, y):
     n = P.shape[1]
-    probes_n = P[y, np.arange(n)]   # shape (n,)
+    probes_n = P[y, np.arange(n)]  
 
     # cross-entropy loss = -log of those probabilities, averaged
     L = -np.sum(np.log(probes_n)) / n
@@ -163,42 +142,37 @@ def ComputeLoss(P, y):
     return L
 
 
-# ── Top-level: check loss on first 100 training images ────────────────────
-P = ApplyNetwork(X_train[:, 0:100], init_net)
-L = ComputeLoss(P, y_train[0:100])
+# check loss on first 100 training images
+P = applyNetwork(X_train[:, 0:100], init_net)
+L = computeLoss(P, y_train[0:100])
 
 print('\n--- ComputeLoss ---')
 print('Loss:', L.round(6))
-print('Expected: close to log(10) =', np.log(10).round(6),
+print('correct: close to log(10) =', np.log(10).round(6),
       ' (random model gives ~equal prob to all 10 classes)')
 
 # Exercise 1.6 — ComputeAccuracy
 
-def ComputeAccuracy(P, y):
-    """
-    Compute the accuracy - get maximum probability.
-    """
+def computeAccuracy(P, y):
+   
     predicted = np.argmax(P, axis=0) 
     acc = np.mean(predicted == y)   
 
     return acc
 
 
-# ── Top-level: check accuracy on first 100 training images ────────────────
-P = ApplyNetwork(X_train[:, 0:100], init_net)
-acc = ComputeAccuracy(P, y_train[0:100])
+# check accuracy on first 100 training images
+P = applyNetwork(X_train[:, 0:100], init_net)
+acc = computeAccuracy(P, y_train[0:100])
 
 print('\n--- ComputeAccuracy ---')
 print('Accuracy:', acc.round(4))
-print('Expected: ~0.10 (10%) — random model guesses 1 out of 10 classes correctly')
+print('correct: ~0.10 (10%) — random model guesses 1 out of 10 classes correctly')
 
 # Exercise 1.7 — BackwardPass (Part 1: error matrix G)
 
-def BackwardPass(X, Y, P, network, lam):
-    """
-    Compute gradients of cost J w.r.t. W and b.
-    """
-    n = X.shape[1]        # number of images
+def backwardPass(X, Y, P, network, lam):
+    n = X.shape[1]      
     W = network['W']   
     G = P - Y
 
@@ -206,7 +180,7 @@ def BackwardPass(X, Y, P, network, lam):
     grad_W = G @ X.T / n + 2 * lam * W 
 
     # b vector
-    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n   #  (10, 1)
+    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n  
 
     # dictionarty to hold gradients
     grads = {}
@@ -216,24 +190,21 @@ def BackwardPass(X, Y, P, network, lam):
     return grads
 
 
-# ── Quick check ───────────────────────────────────────────────────────────
-P_check = ApplyNetwork(X_train[:, 0:3], init_net)
-grads = BackwardPass(X_train[:, 0:3], Y_train[:, 0:3], P_check, init_net, 0)
+#Quick check on first 3 training images
+P_check = applyNetwork(X_train[:, 0:3], init_net)
+grads = backwardPass(X_train[:, 0:3], Y_train[:, 0:3], P_check, init_net, 0)
 
 print('\n--- BackwardPass Part 2: grad_W and grad_b ---')
-print('grad_W shape:', grads['W'].shape, '  expected: (10, 3072)')
-print('grad_b shape:', grads['b'].shape, '  expected: (10, 1)')
+print('grad_W shape:', grads['W'].shape, '  correct: (10, 3072)')
+print('grad_b shape:', grads['b'].shape, '  correct: (10, 1)')
 print('grad_W mean: ', grads['W'].mean().round(8))
 print('grad_b mean: ', grads['b'].mean().round(8))
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.7 — Part 3: Verify gradients with PyTorch
-# ══════════════════════════════════════════════════════════════════════════
 
 import torch
 
-def ComputeGradsWithTorch(X, y, network_params):
-    """Compute gradients using PyTorch — lam=0 (loss only)."""
+def computeGradsWithTorch(X, y, network_params):
     Xt = torch.from_numpy(X)
     W  = torch.tensor(network_params['W'], requires_grad=True)
     b  = torch.tensor(network_params['b'], requires_grad=True)
@@ -248,8 +219,7 @@ def ComputeGradsWithTorch(X, y, network_params):
     return grads
 
 
-def ComputeGradsWithTorchLam(X, y, network_params, lam):
-    """Compute gradients using PyTorch — includes L2 regularization (lam > 0)."""
+def computeGradsWithTorchLam(X, y, network_params, lam):
     Xt = torch.from_numpy(X)
     W  = torch.tensor(network_params['W'], requires_grad=True)
     b  = torch.tensor(network_params['b'], requires_grad=True)
@@ -264,22 +234,18 @@ def ComputeGradsWithTorchLam(X, y, network_params, lam):
     grads['b'] = b.grad.numpy()
     return grads
 
-
-def ComputeRelativeError(ga, gn, eps=1e-10):
-    """
-   Compare code results with PyTorch results. Returns relative error — should be < 1e-6.
-    """
+# Compare code results with PyTorch results. Returns relative error — should be < 1e-6.
+def computeRelativeError(ga, gn, eps=1e-10):
     return np.max(np.abs(ga - gn) / np.maximum(eps, np.abs(ga) + np.abs(gn)))
 
 
-# ── Test on small data — as assignment suggests ────────────────────────────
+# Test on small data — as assignment suggests 
 d_small = 10
 n_small = 3
 lam     = 0
 
-# small network
 small_net = {}
-rng.bit_generator.state = BitGen(seed).state   # reset seed for reproducibility
+rng.bit_generator.state = BitGen(seed).state   
 small_net['W'] = 0.01 * rng.standard_normal(size=(10, d_small))
 small_net['b'] = np.zeros((10, 1))
 
@@ -289,51 +255,49 @@ Y_small = Y_train[:, 0:n_small]
 y_small = y_train[0:n_small]
 
 # compute gradients both ways
-P_small    = ApplyNetwork(X_small, small_net)
-my_grads   = BackwardPass(X_small, Y_small, P_small, small_net, lam)
-torch_grads = ComputeGradsWithTorch(X_small, y_small, small_net)
+P_small    = applyNetwork(X_small, small_net)
+my_grads   = backwardPass(X_small, Y_small, P_small, small_net, lam)
+torch_grads = computeGradsWithTorch(X_small, y_small, small_net)
 
 # compare
-err_W = ComputeRelativeError(my_grads['W'], torch_grads['W'])
-err_b = ComputeRelativeError(my_grads['b'], torch_grads['b'])
+err_W = computeRelativeError(my_grads['W'], torch_grads['W'])
+err_b = computeRelativeError(my_grads['b'], torch_grads['b'])
 
 print('\n--- Gradient verification (lam=0) ---')
-print('Relative error grad_W:', err_W, '  expected: < 1e-6')
-print('Relative error grad_b:', err_b, '  expected: < 1e-6')
+print('Relative error grad_W:', err_W, '  correct: < 1e-6')
+print('Relative error grad_b:', err_b, '  correct: < 1e-6')
 print('grad_W OK:', err_W < 1e-6)
 print('grad_b OK:', err_b < 1e-6)
 
 # ── Also test with lam > 0 ─────────────────────────────────────────────────
 lam = 0.1
-my_grads_reg    = BackwardPass(X_small, Y_small, P_small, small_net, lam)
-torch_grads_reg = ComputeGradsWithTorchLam(X_small, y_small, small_net, lam)
+my_grads_reg    = backwardPass(X_small, Y_small, P_small, small_net, lam)
+torch_grads_reg = computeGradsWithTorchLam(X_small, y_small, small_net, lam)
 
-err_W_reg = ComputeRelativeError(my_grads_reg['W'], torch_grads_reg['W'])
-err_b_reg = ComputeRelativeError(my_grads_reg['b'], torch_grads_reg['b'])
+err_W_reg = computeRelativeError(my_grads_reg['W'], torch_grads_reg['W'])
+err_b_reg = computeRelativeError(my_grads_reg['b'], torch_grads_reg['b'])
 
 print('\n--- Gradient verification (lam=0.1) ---')
-print('Relative error grad_W:', err_W_reg, '  expected: < 1e-6')
-print('Relative error grad_b:', err_b_reg, '  expected: < 1e-6')
+print('Relative error grad_W:', err_W_reg, '  correct: < 1e-6')
+print('Relative error grad_b:', err_b_reg, '  correct: < 1e-6')
 print('grad_W OK:', err_W_reg < 1e-6)
 print('grad_b OK:', err_b_reg < 1e-6)
 
-# ══════════════════════════════════════════════════════════════════════════
+
 # Exercise 1.8 — MiniBatchGD (Part 1: function signature + setup)
-# ══════════════════════════════════════════════════════════════════════════
 
 import copy
 
-def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,decay_every= None):
-    """
-    Train the network using mini-batch gradient descent.
-    after each epoch, compute and save training and validation loss for plotting.
-    """
+def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,decay_every= None):
+   # deep copy so init_net is not modified
     trained_net = copy.deepcopy(init_net)
+
+    # unpack parameters
     n_batch  = GDparams['n_batch']
     eta      = GDparams['eta']
     n_epochs = GDparams['n_epochs']
 
-    n = X.shape[1]  
+    n = X.shape[1]   
 
     train_losses = []
     val_losses   = []
@@ -372,10 +336,10 @@ def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
                         X_batch[:, i] = X_batch[inds_flip, i]
 
             # forward pass
-            P_batch = ApplyNetwork(X_batch, trained_net)
+            P_batch = applyNetwork(X_batch, trained_net)
 
             # backward pass
-            grads = BackwardPass(X_batch, Y_batch, P_batch, trained_net, lam)
+            grads = backwardPass(X_batch, Y_batch, P_batch, trained_net, lam)
 
             # update W and b — equations (8, 9)
             trained_net['W'] -= eta * grads['W']
@@ -383,13 +347,13 @@ def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
 
         # ── compute and save loss after each epoch ─────────────────────
         # training loss
-        P_train    = ApplyNetwork(X, trained_net)
-        train_loss = ComputeLoss(P_train, np.argmax(Y, axis=0))
+        P_train    = applyNetwork(X, trained_net)
+        train_loss = computeLoss(P_train, np.argmax(Y, axis=0))
         train_cost = train_loss + lam * np.sum(trained_net['W'] ** 2)
 
         # validation loss
-        P_val    = ApplyNetwork(X_val, trained_net)
-        val_loss = ComputeLoss(P_val, np.argmax(Y_val, axis=0))
+        P_val    = applyNetwork(X_val, trained_net)
+        val_loss = computeLoss(P_val, np.argmax(Y_val, axis=0))
         val_cost = val_loss + lam * np.sum(trained_net['W'] ** 2)
 
         # save for plotting
@@ -408,32 +372,25 @@ def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
     return trained_net, train_losses, val_losses, train_costs, val_costs
 
 
-# ── Top-level: train with assignment parameters ───────────────────────────
+# train with assignment parameters 
 GDparams = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
 
-# reset seed so results match assignment expected values
 rng.bit_generator.state = BitGen(seed).state
 init_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
 init_net['b'] = np.zeros((K, 1))
 
 print('\n--- MiniBatchGD training (n_batch=100, eta=0.001, n_epochs=40, lam=0) ---')
-trained_net, train_losses, val_losses, train_costs, val_costs = MiniBatchGD(
+trained_net, train_losses, val_losses, train_costs, val_costs = miniBatchGD(
     X_train, Y_train, X_val, Y_val, GDparams, init_net, lam=0, rng=rng)
 
 # final accuracy on test set
-P_test   = ApplyNetwork(X_test, trained_net)
-acc_test = ComputeAccuracy(P_test, y_test)
+P_test   = applyNetwork(X_test, trained_net)
+acc_test = computeAccuracy(P_test, y_test)
 print(f'\nTest accuracy: {acc_test:.4f}  expected: ~0.3913')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Plotting — loss curves and W visualization
-# ══════════════════════════════════════════════════════════════════════════
 
-def PlotLossCurves(train_losses, val_losses, train_costs, val_costs, title=''):
-    """
-    Plot loss and cost curves for training and validation.
-    Assignment requires both loss and cost graphs.
-    """
+def plotLossCurves(train_losses, val_losses, train_costs, val_costs, title=''):
     epochs = range(1, len(train_losses) + 1)
 
     fig, axs = plt.subplots(1, 2, figsize=(14, 5))
@@ -460,11 +417,7 @@ def PlotLossCurves(train_losses, val_losses, train_costs, val_costs, title=''):
     plt.pause(5)
 
 
-def VisualizeWeights(trained_net, title=''):
-    """
-    Visualize each row of W as a class template image.
-    Follows assignment code exactly.
-    """
+def visualizeWeights(trained_net, title=''):
     # rearrange W rows into displayable images — exactly as assignment says
     Ws   = trained_net['W'].transpose().reshape((32, 32, 3, 10), order='F')
     W_im = np.transpose(Ws, (1, 0, 2, 3))
@@ -487,23 +440,19 @@ def VisualizeWeights(trained_net, title=''):
     plt.pause(5)
 
 
-# ── Plot results from our training run ────────────────────────────────────
-PlotLossCurves(train_losses, val_losses, train_costs, val_costs,
+# Plot results from our training run 
+plotLossCurves(train_losses, val_losses, train_costs, val_costs,
                title='lam=0, eta=0.001, n_epochs=40, n_batch=100')
-VisualizeWeights(trained_net,
+visualizeWeights(trained_net,
                  title='Learned W — lam=0, eta=0.001, n_epochs=40')
 
-# ══════════════════════════════════════════════════════════════════════════
 # 4 Experiments — as assignment requires
-# ══════════════════════════════════════════════════════════════════════════
 
-def RunExperiment(X_train, Y_train, y_train,
+def runExperiment(X_train, Y_train, y_train,
                   X_val,   Y_val,
                   X_test,  y_test,
                   lam, eta, n_epochs, n_batch, rng):
-    """
-    Run one full experiment — train, plot, visualize, report accuracy.
-    """
+
     title = f'lam={lam}, eta={eta}, n_epochs={n_epochs}, n_batch={n_batch}'
     print(f'\n{"="*60}')
     print(f'Experiment: {title}')
@@ -517,34 +466,34 @@ def RunExperiment(X_train, Y_train, y_train,
 
     # train
     GDparams = {'n_batch': n_batch, 'eta': eta, 'n_epochs': n_epochs}
-    trained, train_losses, val_losses, train_costs, val_costs = MiniBatchGD(
+    trained, train_losses, val_losses, train_costs, val_costs = miniBatchGD(
         X_train, Y_train, X_val, Y_val, GDparams, net, lam, rng)
 
     # test accuracy
-    P_test   = ApplyNetwork(X_test, trained)
-    acc_test = ComputeAccuracy(P_test, y_test)
+    P_test   = applyNetwork(X_test, trained)
+    acc_test = computeAccuracy(P_test, y_test)
     print(f'\nTest accuracy: {acc_test:.4f}')
 
     # plot loss curves
-    PlotLossCurves(train_losses, val_losses, train_costs, val_costs, title=title)
+    plotLossCurves(train_losses, val_losses, train_costs, val_costs, title=title)
 
     # visualize W
-    VisualizeWeights(trained, title=title)
+    visualizeWeights(trained, title=title)
 
     return acc_test
 
 
-# ── Run all 4 experiments ──────────────────────────────────────────────────
-# experiments = [
-#     {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
-#     {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-#     {'lam': 0.1, 'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-#     {'lam': 1,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-# ]
+# ── Run all 4 experiments 
+experiments = [
+    {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
+    {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+    {'lam': 0.1, 'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+    {'lam': 1,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+]
 
-# results = []
+results = []
 # for exp in experiments:
-#     acc = RunExperiment(
+#     acc = runExperiment(
 #         X_train, Y_train, y_train,
 #         X_val,   Y_val,
 #         X_test,  y_test,
@@ -553,17 +502,16 @@ def RunExperiment(X_train, Y_train, y_train,
 #         rng=rng)
 #     results.append((exp, acc))
 
-# # ── Summary ────────────────────────────────────────────────────────────────
-# print('\n--- Summary of all experiments ---')
-# for exp, acc in results:
-#     print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
-
+#Summary
+print('\n--- Summary of all experiments ---')
+for exp, acc in results:
+    print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
 
 def LoadAllBatches():
     # load all 5 batches and concatenate
     X_all, Y_all, y_all = [], [], []
     for i in range(1, 6):
-        X, Y, y = LoadBatch(f'data_batch_{i}')
+        X, Y, y = loadBatch(f'data_batch_{i}')
         X_all.append(X)
         Y_all.append(Y)
         y_all.append(y)
@@ -580,43 +528,41 @@ def LoadAllBatches():
     y_train_b = y_all[1000:]
  
     # test data
-    X_test_b, Y_test_b, y_test_b = LoadBatch('test_batch')
+    X_test_b, Y_test_b, y_test_b = loadBatch('test_batch')
  
     # normalize using training statistics
-    X_train_b, X_val_b, X_test_b, _, _ = NormalizeData(X_train_b, X_val_b, X_test_b)
+    X_train_b, X_val_b, X_test_b, _, _ = normalizeData(X_train_b, X_val_b, X_test_b)
  
     return X_train_b, Y_train_b, y_train_b, X_val_b, Y_val_b, y_val_b, X_test_b, Y_test_b, y_test_b
 
 
 X_train_b, Y_train_b, y_train_b, X_val_b,   Y_val_b,   y_val_b,   X_test_b,  Y_test_b,  y_test_b   = LoadAllBatches()
  
-# print('\n--- Bonus training 1 -----')
+print('\n--- Bonus training 1 -----')
  
-# rng.bit_generator.state = BitGen(seed).state
-# bonus_net = {}
-# bonus_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
-# bonus_net['b'] = np.zeros((K, 1))
+rng.bit_generator.state = BitGen(seed).state
+bonus_net = {}
+bonus_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
+bonus_net['b'] = np.zeros((K, 1))
  
-# GDparams_bonus = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
+GDparams_bonus = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
  
-# trained_bonus, train_losses_b, val_losses_b, train_costs_b, val_costs_b = MiniBatchGD(
-#     X_train_b, Y_train_b, X_val_b, Y_val_b,
-#     GDparams_bonus, bonus_net, lam=0.01, rng=rng, augment=True)
+trained_bonus, train_losses_b, val_losses_b, train_costs_b, val_costs_b = miniBatchGD(
+    X_train_b, Y_train_b, X_val_b, Y_val_b,
+    GDparams_bonus, bonus_net, lam=0.01, rng=rng, augment=True)
  
-# # test accuracy
-# P_bonus  = ApplyNetwork(X_test_b, trained_bonus)
-# acc_bonus = ComputeAccuracy(P_bonus, y_test_b)
-# print(f'\nBonus test accuracy: {acc_bonus:.4f}  (baseline was 0.3913)')
+# test accuracy
+P_bonus  = applyNetwork(X_test_b, trained_bonus)
+acc_bonus = computeAccuracy(P_bonus, y_test_b)
+print(f'\nBonus test accuracy: {acc_bonus:.4f}  (baseline was 0.3913)')
  
-# # plot and visualize
-# PlotLossCurves(train_losses_b, val_losses_b, train_costs_b, val_costs_b,
-#                title='Bonus: all batches + augmentation, lam=0.01, eta=0.001')
-# VisualizeWeights(trained_bonus, title='Bonus: all batches + augmentation')
+# plot and visualize
+plotLossCurves(train_losses_b, val_losses_b, train_costs_b, val_costs_b,
+               title='Bonus: all batches + augmentation, lam=0.01, eta=0.001')
+visualizeWeights(trained_bonus, title='Bonus: all batches + augmentation')
 
 
-# ══════════════════════════════════════════════════════════════════════════
 # Bonus 2.1(a+b+d) — All batches + augmentation + learning rate decay
-# ══════════════════════════════════════════════════════════════════════════
  
 print('\n--- Bonus training: all batches + augmentation + lr decay ---')
  
@@ -629,20 +575,20 @@ bonus_net2['b'] = np.zeros((K, 1))
 # decay eta by 10 every 20 epochs: 0.001 → 0.0001 → 0.00001
 GDparams_bonus2 = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
  
-trained_bonus2, train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2 = MiniBatchGD(
+trained_bonus2, train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2 = miniBatchGD(
     X_train_b, Y_train_b, X_val_b, Y_val_b,
     GDparams_bonus2, bonus_net2, lam=0.01, rng=rng,
     augment=True, decay_every=20)
  
 # test accuracy
-P_bonus2   = ApplyNetwork(X_test_b, trained_bonus2)
-acc_bonus2 = ComputeAccuracy(P_bonus2, y_test_b)
+P_bonus2   = applyNetwork(X_test_b, trained_bonus2)
+acc_bonus2 = computeAccuracy(P_bonus2, y_test_b)
 print(f'\nBonus test accuracy (a+b+d): {acc_bonus2:.4f}')
 print(f'Baseline:                     0.3913')
 print(f'With (a+b):                   0.4164')
 print(f'With (a+b+d):                 {acc_bonus2:.4f}')
  
 # plot
-PlotLossCurves(train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2,
+plotLossCurves(train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2,
                title='Bonus a+b+d: augment + lr decay, lam=0.01')
-VisualizeWeights(trained_bonus2, title='Bonus a+b+d: augment + lr decay')
+visualizeWeights(trained_bonus2, title='Bonus a+b+d: augment + lr decay')
