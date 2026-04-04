@@ -46,13 +46,13 @@ X_val,   Y_val,   y_val   = loadBatch('data_batch_2')
 X_test,  Y_test,  y_test  = loadBatch('test_batch')
 
 # check data
-print('X_train shape:', X_train.shape, '  expected: (3072, 10000)')
-print('Y_train shape:', Y_train.shape, '  expected: (10,   10000)')
-print('y_train shape:', y_train.shape, '  expected: (10000,)')
-print('X dtype:',       X_train.dtype, '  expected: float64')
-print('Y dtype:',       Y_train.dtype, '  expected: float64')
-print('X range:  min =', X_train.min(), ' max =', X_train.max(), '  expected: 0.0 to 1.0')
-print('y range:  min =', y_train.min(), ' max =', y_train.max(), '  expected: 0 to 9')
+print('X_train shape:', X_train.shape, '  correct: (3072, 10000)')
+print('Y_train shape:', Y_train.shape, '  correct: (10,   10000)')
+print('y_train shape:', y_train.shape, '  correct: (10000,)')
+print('X dtype:',       X_train.dtype, '  correct: float64')
+print('Y dtype:',       Y_train.dtype, '  correct: float64')
+print('X range:  min =', X_train.min(), ' max =', X_train.max(), '  correct: 0.0 to 1.0')
+print('y range:  min =', y_train.min(), ' max =', y_train.max(), '  correct: 0 to 9')
 
 # Exercise 1.2 — Normalize data
 
@@ -77,15 +77,15 @@ print('X_train mean (should be ~0):', np.mean(X_train).round(6))
 print('X_train std  (should be ~1):', np.std(X_train).round(6))
 print('X_val   mean (close to 0):  ', np.mean(X_val).round(6))
 print('X_test  mean (close to 0):  ', np.mean(X_test).round(6))
-print('mean_X shape:', mean_X.shape, '  expected: (3072, 1)')
-print('std_X  shape:', std_X.shape,  '  expected: (3072, 1)')
+print('mean_X shape:', mean_X.shape, '  correct: (3072, 1)')
+print('std_X  shape:', std_X.shape,  '  correct: (3072, 1)')
 
 # Exercise 1.3 — Initialize network parameters W and b
 
 K = 10
 d = X_train.shape[0]  
 
-# set up reproducible random number generator (seed=42 as assignment suggests)
+# seed=42 as assignment suggests)
 rng = np.random.default_rng()
 BitGen = type(rng.bit_generator)
 seed = 42
@@ -98,26 +98,21 @@ init_net['b'] = np.zeros((K, 1))
 
 # check 1.3
 print('\n--- Network initialization ---')
-print('W shape:', init_net['W'].shape, '  expected: (10, 3072)')
-print('b shape:', init_net['b'].shape, '  expected: (10, 1)')
-print('W mean: ', init_net['W'].mean().round(6), '  expected: ~0')
-print('W std:  ', init_net['W'].std().round(6),  '  expected: ~0.01')
-print('b values:', init_net['b'].T,               '  expected: all zeros')
+print('W shape:', init_net['W'].shape, '  correct: (10, 3072)')
+print('b shape:', init_net['b'].shape, '  correct: (10, 1)')
+print('W mean: ', init_net['W'].mean().round(6), '  correct: ~0')
+print('W std:  ', init_net['W'].std().round(6),  '  correct: ~0.01')
+print('b values:', init_net['b'].T,               '  correct: all zeros')
 
 # Exercise 1.4 — ApplyNetwork
 
-
 def softmax(s):
-    """Get probability ."""
     # subtract max to prevent overflow — does not change result
     e = np.exp(s - np.max(s, axis=0))
     return e / np.sum(e, axis=0)
 
 
 def applyNetwork(X, network):
-    """
-    use  s = Wx + b
-    """
     W = network['W'] 
     b = network['b'] 
 
@@ -129,11 +124,11 @@ def applyNetwork(X, network):
 P = applyNetwork(X_train[:, 0:100], init_net)
 
 print('\n--- ApplyNetwork ---')
-print('P shape:       ', P.shape,         '  expected: (10, 100)')
-print('P min:         ', P.min().round(6), '  expected: > 0')
-print('P max:         ', P.max().round(6), '  expected: < 1')
-print('P col 0 sum:   ', P[:, 0].sum().round(6), '  expected: 1.0')
-print('P col 99 sum:  ', P[:, 99].sum().round(6), '  expected: 1.0')
+print('P shape:       ', P.shape,         '  correct: (10, 100)')
+print('P min:         ', P.min().round(6), '  correct: > 0')
+print('P max:         ', P.max().round(6), '  correct: < 1')
+print('P col 0 sum:   ', P[:, 0].sum().round(6), '  correct: 1.0')
+print('P col 99 sum:  ', P[:, 99].sum().round(6), '  correct: 1.0')
 
 # Exercise 1.5 — ComputeLoss
 
@@ -147,13 +142,13 @@ def computeLoss(P, y):
     return L
 
 
-# ── Top-level: check loss on first 100 training images ────────────────────
+# check loss on first 100 training images
 P = applyNetwork(X_train[:, 0:100], init_net)
 L = computeLoss(P, y_train[0:100])
 
 print('\n--- ComputeLoss ---')
 print('Loss:', L.round(6))
-print('Expected: close to log(10) =', np.log(10).round(6),
+print('correct: close to log(10) =', np.log(10).round(6),
       ' (random model gives ~equal prob to all 10 classes)')
 
 # Exercise 1.6 — ComputeAccuracy
@@ -166,13 +161,13 @@ def computeAccuracy(P, y):
     return acc
 
 
-# ── Top-level: check accuracy on first 100 training images ────────────────
+# check accuracy on first 100 training images
 P = applyNetwork(X_train[:, 0:100], init_net)
 acc = computeAccuracy(P, y_train[0:100])
 
 print('\n--- ComputeAccuracy ---')
 print('Accuracy:', acc.round(4))
-print('Expected: ~0.10 (10%) — random model guesses 1 out of 10 classes correctly')
+print('correct: ~0.10 (10%) — random model guesses 1 out of 10 classes correctly')
 
 # Exercise 1.7 — BackwardPass (Part 1: error matrix G)
 
@@ -185,7 +180,7 @@ def backwardPass(X, Y, P, network, lam):
     grad_W = G @ X.T / n + 2 * lam * W 
 
     # b vector
-    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n   #  (10, 1)
+    grad_b = np.sum(G, axis=1).reshape(-1, 1) / n  
 
     # dictionarty to hold gradients
     grads = {}
@@ -195,13 +190,13 @@ def backwardPass(X, Y, P, network, lam):
     return grads
 
 
-# ── Quick check ───────────────────────────────────────────────────────────
+#Quick check on first 3 training images
 P_check = applyNetwork(X_train[:, 0:3], init_net)
 grads = backwardPass(X_train[:, 0:3], Y_train[:, 0:3], P_check, init_net, 0)
 
 print('\n--- BackwardPass Part 2: grad_W and grad_b ---')
-print('grad_W shape:', grads['W'].shape, '  expected: (10, 3072)')
-print('grad_b shape:', grads['b'].shape, '  expected: (10, 1)')
+print('grad_W shape:', grads['W'].shape, '  correct: (10, 3072)')
+print('grad_b shape:', grads['b'].shape, '  correct: (10, 1)')
 print('grad_W mean: ', grads['W'].mean().round(8))
 print('grad_b mean: ', grads['b'].mean().round(8))
 
@@ -269,8 +264,8 @@ err_W = computeRelativeError(my_grads['W'], torch_grads['W'])
 err_b = computeRelativeError(my_grads['b'], torch_grads['b'])
 
 print('\n--- Gradient verification (lam=0) ---')
-print('Relative error grad_W:', err_W, '  expected: < 1e-6')
-print('Relative error grad_b:', err_b, '  expected: < 1e-6')
+print('Relative error grad_W:', err_W, '  correct: < 1e-6')
+print('Relative error grad_b:', err_b, '  correct: < 1e-6')
 print('grad_W OK:', err_W < 1e-6)
 print('grad_b OK:', err_b < 1e-6)
 
@@ -283,8 +278,8 @@ err_W_reg = computeRelativeError(my_grads_reg['W'], torch_grads_reg['W'])
 err_b_reg = computeRelativeError(my_grads_reg['b'], torch_grads_reg['b'])
 
 print('\n--- Gradient verification (lam=0.1) ---')
-print('Relative error grad_W:', err_W_reg, '  expected: < 1e-6')
-print('Relative error grad_b:', err_b_reg, '  expected: < 1e-6')
+print('Relative error grad_W:', err_W_reg, '  correct: < 1e-6')
+print('Relative error grad_b:', err_b_reg, '  correct: < 1e-6')
 print('grad_W OK:', err_W_reg < 1e-6)
 print('grad_b OK:', err_b_reg < 1e-6)
 
@@ -301,9 +296,8 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
     eta      = GDparams['eta']
     n_epochs = GDparams['n_epochs']
 
-    n = X.shape[1]   # number of training images
+    n = X.shape[1]   
 
-    # lists to track loss and cost history for plotting
     train_losses = []
     val_losses   = []
     train_costs  = []
@@ -322,8 +316,8 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
             j_start = j * n_batch
             j_end   = (j + 1) * n_batch
 
-            X_batch = X_shuffled[:, j_start:j_end]   # (d, n_batch)
-            Y_batch = Y_shuffled[:, j_start:j_end]   # (K, n_batch)
+            X_batch = X_shuffled[:, j_start:j_end]   
+            Y_batch = Y_shuffled[:, j_start:j_end]   
 
             # forward pass
             P_batch = applyNetwork(X_batch, trained_net)
@@ -331,11 +325,10 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
             # backward pass
             grads = backwardPass(X_batch, Y_batch, P_batch, trained_net, lam)
 
-            # update W and b — equations (8, 9)
             trained_net['W'] -= eta * grads['W']
             trained_net['b'] -= eta * grads['b']
 
-        # ── compute and save loss after each epoch ─────────────────────
+        # compute and save loss after each epoch 
         # training loss
         P_train    = applyNetwork(X, trained_net)
         train_loss = computeLoss(P_train, np.argmax(Y, axis=0))
@@ -357,7 +350,7 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
     return trained_net, train_losses, val_losses, train_costs, val_costs
 
 
-# Top-level: train with assignment parameters 
+# train with assignment parameters 
 GDparams = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
 
 rng.bit_generator.state = BitGen(seed).state
@@ -371,7 +364,7 @@ trained_net, train_losses, val_losses, train_costs, val_costs = miniBatchGD(
 # final accuracy on test set
 P_test   = applyNetwork(X_test, trained_net)
 acc_test = computeAccuracy(P_test, y_test)
-print(f'\nTest accuracy: {acc_test:.4f}  expected: ~0.3913')
+print(f'\nTest accuracy: {acc_test:.4f}  correct: ~0.3913')
 
 
 # Plotting — loss curves and W visualization
@@ -426,7 +419,7 @@ def visualizeWeights(trained_net, title=''):
     plt.pause(5)
 
 
-# ── Plot results from our training run ────────────────────────────────────
+# Plot results from our training run 
 plotLossCurves(train_losses, val_losses, train_costs, val_costs,
                title='lam=0, eta=0.001, n_epochs=40, n_batch=100')
 visualizeWeights(trained_net,
@@ -469,7 +462,7 @@ def runExperiment(X_train, Y_train, y_train,
     return acc_test
 
 
-# ── Run all 4 experiments ──────────────────────────────────────────────────
+# ── Run all 4 experiments 
 experiments = [
     {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
     {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
