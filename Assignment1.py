@@ -452,7 +452,7 @@ def runExperiment(X_train, Y_train, y_train,
 
     # train
     GDparams = {'n_batch': n_batch, 'eta': eta, 'n_epochs': n_epochs}
-    trained, train_losses, val_losses, train_costs, val_costs = MiniBatchGD(
+    trained, train_losses, val_losses, train_costs, val_costs = miniBatchGD(
         X_train, Y_train, X_val, Y_val, GDparams, net, lam, rng)
 
     # test accuracy
