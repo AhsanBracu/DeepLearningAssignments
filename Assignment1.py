@@ -123,6 +123,16 @@ def applyNetwork(X, network):
 
 P = applyNetwork(X_train[:, 0:100], init_net)
 
+def applyNetworkBCE(X, network):
+    W = network['W'] 
+    b = network['b'] 
+
+    s = W @ X + b 
+    # P = softmax(s) 
+    P = 1 / (1 + np.exp(-s)) # bonus 2 
+
+    return P
+
 print('\n--- ApplyNetwork ---')
 print('P shape:       ', P.shape,         '  correct: (10, 100)')
 print('P min:         ', P.min().round(6), '  correct: > 0')
@@ -141,12 +151,22 @@ def computeLoss(P, y):
 
     return L
 
+# Bonus 2: Binary Cross-Entropy Loss for sigmoid outputs
+def computeLossBCE(P, Y):
+    K = P.shape[0]
+    n = P.shape[1]
+    P_clipped = np.clip(P, 1e-15, 1 - 1e-15) 
+    loss = -np.mean(
+        np.sum(Y * np.log(P_clipped) + (1 - Y) * np.log(1 - P_clipped), axis=0)
+    ) / K
+    return loss
+
 
 # check loss on first 100 training images
 P = applyNetwork(X_train[:, 0:100], init_net)
-L = computeLoss(P, y_train[0:100])
+L = computeLossBCE(P, Y_train[:, 0:100])
 
-print('\n--- ComputeLoss ---')
+print('\n--- ComputeLossBCE ---')
 print('Loss:', L.round(6))
 print('correct: close to log(10) =', np.log(10).round(6),
       ' (random model gives ~equal prob to all 10 classes)')
@@ -190,9 +210,26 @@ def backwardPass(X, Y, P, network, lam):
     return grads
 
 
+# Bonus 2: Backward pass for Binary Cross-Entropy Loss with sigmoid outputs
+def BackwardPassBCE(X, Y, P, network, lam):
+    n = X.shape[1]
+    K = P.shape[0]
+    
+    G = (P - Y) / K      # only change from standard backward pass is dividing by K for BCE loss
+    
+    grad_W = (1/n) * G @ X.T + 2 * lam * network['W']   # (10 × 3072)
+    grad_b = (1/n) * np.sum(G, axis=1, keepdims=True)   # (10 × 1)
+    
+    grads = {}
+    grads['W'] = grad_W
+    grads['b'] = grad_b
+    
+    return grads
+
+
 #Quick check on first 3 training images
 P_check = applyNetwork(X_train[:, 0:3], init_net)
-grads = backwardPass(X_train[:, 0:3], Y_train[:, 0:3], P_check, init_net, 0)
+grads = BackwardPassBCE(X_train[:, 0:3], Y_train[:, 0:3], P_check, init_net, 0)
 
 print('\n--- BackwardPass Part 2: grad_W and grad_b ---')
 print('grad_W shape:', grads['W'].shape, '  correct: (10, 3072)')
@@ -368,6 +405,67 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
         if decay_every is not None and (epoch + 1) % decay_every == 0:
             eta = eta / 10
             print(f'  → learning rate decayed to {eta:.6f}')
+
+    return trained_net, train_losses, val_losses, train_costs, val_costs
+
+# bonus 2.2 — MiniBatchGD with BCE loss and sigmoid outputs
+def MiniBatchGDBCE(X, Y, y, X_val, Y_val, y_val,
+                   GDparams, init_net, lam, rng):
+    
+    n_batch  = GDparams['n_batch']
+    eta      = GDparams['eta']
+    n_epochs = GDparams['n_epochs']
+    n        = X.shape[1]
+
+    trained_net = copy.deepcopy(init_net)
+
+    train_losses, val_losses   = [], []
+    train_costs,  val_costs    = [], []
+
+    for epoch in range(n_epochs):
+        # Shuffle
+        perm = rng.permutation(n)
+        X = X[:, perm]
+        Y = Y[:, perm]
+
+        # Mini-batch updates
+        for j in range(n // n_batch):
+            j_start = j * n_batch
+            j_end   = (j + 1) * n_batch
+            
+            X_batch = X[:, j_start:j_end]
+            Y_batch = Y[:, j_start:j_end]
+
+            # Forward
+            P_batch = applyNetworkBCE(X_batch, trained_net)
+            
+            # Backward — BCE version
+            grads = BackwardPassBCE(X_batch, Y_batch, 
+                                    P_batch, trained_net, lam)
+
+            # Update
+            trained_net['W'] -= eta * grads['W']
+            trained_net['b'] -= eta * grads['b']
+
+        # Record after each epoch
+        P_train = applyNetworkBCE(X, trained_net)
+        P_val   = applyNetworkBCE(X_val, trained_net)
+
+        # y for integer labels — need to reshuffle too
+        train_loss = computeLossBCE(P_train, Y)
+        val_loss   = computeLossBCE(P_val,   Y_val)
+
+        train_cost = train_loss + lam * np.sum(trained_net['W']**2)
+        val_cost   = val_loss   + lam * np.sum(trained_net['W']**2)
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        train_costs.append(train_cost)
+        val_costs.append(val_cost)
+
+        print(f'Epoch {epoch+1}/{n_epochs} '
+              f'| train_loss: {train_loss:.4f} '
+              f'| val_loss: {val_loss:.4f}')
 
     return trained_net, train_losses, val_losses, train_costs, val_costs
 
@@ -592,3 +690,94 @@ print(f'With (a+b+d):                 {acc_bonus2:.4f}')
 plotLossCurves(train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2,
                title='Bonus a+b+d: augment + lr decay, lam=0.01')
 visualizeWeights(trained_bonus2, title='Bonus a+b+d: augment + lr decay')
+
+
+def PlotBCEHistogram(P, y, title='BCE Histogram'):
+    n = P.shape[1]
+    true_class_probs = P[y, np.arange(n)]
+    
+    predicted = np.argmax(P, axis=0)     
+    correct_mask   = predicted == y
+    incorrect_mask = predicted != y
+    
+    correct_probs   = true_class_probs[correct_mask]
+    incorrect_probs = true_class_probs[incorrect_mask]
+    
+    # Plot
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    
+    axes[0].hist(correct_probs, bins=50, color='green', alpha=0.7)
+    axes[0].set_title('Correctly Classified')
+    axes[0].set_xlabel('P(true class)')
+    axes[0].set_ylabel('Count')
+    axes[0].set_xlim([0, 1])
+    
+    axes[1].hist(incorrect_probs, bins=50, color='red', alpha=0.7)
+    axes[1].set_title('Incorrectly Classified')
+    axes[1].set_xlabel('P(true class)')
+    axes[1].set_ylabel('Count')
+    axes[1].set_xlim([0, 1])
+    
+    plt.suptitle(title)
+    plt.tight_layout()
+    plt.savefig(f'{title}.png')
+    plt.show()
+
+# Bonus 2.3 — Plot histogram of predicted probabilities for correct vs incorrect classifications
+P_final = applyNetworkBCE(X_test_b, trained_bonus2)
+PlotBCEHistogram(P_final, y_test_b, title='Bonus 2.3: BCE Probabilities for Correct vs Incorrect')
+
+def RunExperimentBCE(X_train, Y_train, y_train,
+                     X_val, Y_val, y_val,
+                     X_test, Y_test, y_test,
+                     lam, eta, n_epochs, n_batch,
+                     rng, title='BCE_Experiment'):
+
+    # 1. Initialize network (same as before)
+    d = X_train.shape[0]
+    K = Y_train.shape[0]
+    
+    BitGen = type(rng.bit_generator)
+    seed = 42
+    rng.bit_generator.state = BitGen(seed).state
+    
+    init_net = {}
+    init_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
+    init_net['b'] = np.zeros((K, 1))
+
+    # 2. Train using MiniBatchGD but with BCE functions
+    trained_net, train_losses, val_losses, train_costs, val_costs = MiniBatchGDBCE(
+        X_train, Y_train, y_train,
+        X_val,   Y_val,   y_val,
+        GDparams={'n_batch': n_batch, 'eta': eta, 'n_epochs': n_epochs},
+        init_net=init_net,
+        lam=lam,
+        rng=rng
+    )
+
+    # 3. Test accuracy
+    P_test = applyNetworkBCE(X_test, trained_net)
+    test_acc = computeAccuracy(P_test, y_test)
+    print(f'[{title}] Test Accuracy: {test_acc*100:.2f}%')
+
+    # 4. Plot loss curves
+    plotLossCurves(train_losses, val_losses, 
+                   train_costs, val_costs, title)
+
+    # 5. Plot histogram
+    PlotBCEHistogram(P_test, y_test, title=f'{title}_Histogram')
+
+    return trained_net, test_acc   
+
+
+trained_net_bce, acc_bce = RunExperimentBCE(
+    X_train, Y_train, y_train,
+    X_val,   Y_val,   y_val,
+    X_test,  Y_test,  y_test,
+    lam      = 0.1,
+    eta      = 0.01,    # higher than softmax because of 1/K factor
+    n_epochs = 40,
+    n_batch  = 100,
+    rng      = rng,
+    title    = 'BCE_lam0.1_eta0.01'
+)
