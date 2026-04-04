@@ -116,9 +116,7 @@ print('W mean: ', init_net['W'].mean().round(6), '  expected: ~0')
 print('W std:  ', init_net['W'].std().round(6),  '  expected: ~0.01')
 print('b values:', init_net['b'].T,               '  expected: all zeros')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.4 — ApplyNetwork
-# ══════════════════════════════════════════════════════════════════════════
 
 def softmax(s):
     """Get probability ."""
@@ -150,9 +148,7 @@ print('P max:         ', P.max().round(6), '  expected: < 1')
 print('P col 0 sum:   ', P[:, 0].sum().round(6), '  expected: 1.0')
 print('P col 99 sum:  ', P[:, 99].sum().round(6), '  expected: 1.0')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.5 — ComputeLoss
-# ══════════════════════════════════════════════════════════════════════════
 
 def ComputeLoss(P, y):
     """
@@ -176,9 +172,7 @@ print('Loss:', L.round(6))
 print('Expected: close to log(10) =', np.log(10).round(6),
       ' (random model gives ~equal prob to all 10 classes)')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.6 — ComputeAccuracy
-# ══════════════════════════════════════════════════════════════════════════
 
 def ComputeAccuracy(P, y):
     """
@@ -198,9 +192,7 @@ print('\n--- ComputeAccuracy ---')
 print('Accuracy:', acc.round(4))
 print('Expected: ~0.10 (10%) — random model guesses 1 out of 10 classes correctly')
 
-# ══════════════════════════════════════════════════════════════════════════
 # Exercise 1.7 — BackwardPass (Part 1: error matrix G)
-# ══════════════════════════════════════════════════════════════════════════
 
 def BackwardPass(X, Y, P, network, lam):
     """
@@ -331,31 +323,36 @@ print('grad_b OK:', err_b_reg < 1e-6)
 
 import copy
 
-def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
+def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,decay_every= None):
     """
     Train the network using mini-batch gradient descent.
     after each epoch, compute and save training and validation loss for plotting.
     """
-    # deep copy so init_net is not modified
     trained_net = copy.deepcopy(init_net)
-
-    # unpack parameters
     n_batch  = GDparams['n_batch']
     eta      = GDparams['eta']
     n_epochs = GDparams['n_epochs']
 
-    n = X.shape[1]   # number of training images
+    n = X.shape[1]  
 
-    # lists to track loss and cost history for plotting
     train_losses = []
     val_losses   = []
     train_costs  = []
     val_costs    = []
 
-    # ── loop over epochs ──────────────────────────────────────────────
+       # (Bonus 2.1b) code given 
+    if augment:
+        aa = np.int32(np.arange(32)).reshape((32, 1))
+        bb = np.int32(np.arange(31, -1, -1)).reshape((32, 1))
+        vv = np.tile(32*aa, (1, 32))
+        ind_flip  = vv.reshape((32*32, 1)) + np.tile(bb, (32, 1))
+        inds_flip = np.vstack((ind_flip, 1024+ind_flip))
+        inds_flip = np.vstack((inds_flip, 2048+ind_flip))
+        inds_flip = inds_flip.flatten()  
+ 
+
     for epoch in range(n_epochs):
 
-        # shuffle training data at start of each epoch
         indices    = rng.permutation(n)
         X_shuffled = X[:, indices]
         Y_shuffled = Y[:, indices]
@@ -367,6 +364,12 @@ def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
 
             X_batch = X_shuffled[:, j_start:j_end]   # (d, n_batch)
             Y_batch = Y_shuffled[:, j_start:j_end]   # (K, n_batch)
+
+              # ── Bonus 2.1(b): flip
+            if augment:
+                for i in range(X_batch.shape[1]):
+                    if rng.random() < 0.5:
+                        X_batch[:, i] = X_batch[inds_flip, i]
 
             # forward pass
             P_batch = ApplyNetwork(X_batch, trained_net)
@@ -396,6 +399,11 @@ def MiniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng):
         val_costs.append(val_cost)
 
         print(f'Epoch {epoch+1}/{n_epochs} — train cost: {train_cost:.4f}  val cost: {val_cost:.4f}')
+
+        # ── Part (d): step decay — reduce eta every decay_every epochs ─
+        if decay_every is not None and (epoch + 1) % decay_every == 0:
+            eta = eta / 10
+            print(f'  → learning rate decayed to {eta:.6f}')
 
     return trained_net, train_losses, val_losses, train_costs, val_costs
 
@@ -527,28 +535,28 @@ def RunExperiment(X_train, Y_train, y_train,
 
 
 # ── Run all 4 experiments ──────────────────────────────────────────────────
-experiments = [
-    {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
-    {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-    {'lam': 0.1, 'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-    {'lam': 1,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
-]
+# experiments = [
+#     {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
+#     {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+#     {'lam': 0.1, 'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+#     {'lam': 1,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
+# ]
 
-results = []
-for exp in experiments:
-    acc = RunExperiment(
-        X_train, Y_train, y_train,
-        X_val,   Y_val,
-        X_test,  y_test,
-        lam=exp['lam'], eta=exp['eta'],
-        n_epochs=exp['n_epochs'], n_batch=exp['n_batch'],
-        rng=rng)
-    results.append((exp, acc))
+# results = []
+# for exp in experiments:
+#     acc = RunExperiment(
+#         X_train, Y_train, y_train,
+#         X_val,   Y_val,
+#         X_test,  y_test,
+#         lam=exp['lam'], eta=exp['eta'],
+#         n_epochs=exp['n_epochs'], n_batch=exp['n_batch'],
+#         rng=rng)
+#     results.append((exp, acc))
 
-# ── Summary ────────────────────────────────────────────────────────────────
-print('\n--- Summary of all experiments ---')
-for exp, acc in results:
-    print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
+# # ── Summary ────────────────────────────────────────────────────────────────
+# print('\n--- Summary of all experiments ---')
+# for exp, acc in results:
+#     print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
 
 
 def LoadAllBatches():
@@ -560,11 +568,10 @@ def LoadAllBatches():
         Y_all.append(Y)
         y_all.append(y)
  
-    X_all = np.concatenate(X_all, axis=1)   # (3072, 50000)
-    Y_all = np.concatenate(Y_all, axis=1)   # (10,   50000)
-    y_all = np.concatenate(y_all, axis=0)   # (50000,)
+    X_all = np.concatenate(X_all, axis=1) 
+    Y_all = np.concatenate(Y_all, axis=1)   
+    y_all = np.concatenate(y_all, axis=0)   
  
-    # first 1000 images → validation, rest → training
     X_val_b   = X_all[:, :1000]
     Y_val_b   = Y_all[:, :1000]
     y_val_b   = y_all[:1000]
@@ -579,14 +586,63 @@ def LoadAllBatches():
     X_train_b, X_val_b, X_test_b, _, _ = NormalizeData(X_train_b, X_val_b, X_test_b)
  
     return X_train_b, Y_train_b, y_train_b, X_val_b, Y_val_b, y_val_b, X_test_b, Y_test_b, y_test_b
+
+
+X_train_b, Y_train_b, y_train_b, X_val_b,   Y_val_b,   y_val_b,   X_test_b,  Y_test_b,  y_test_b   = LoadAllBatches()
  
+# print('\n--- Bonus training 1 -----')
  
-# ── Load all batches ───────────────────────────────────────────────────────
-X_train_b, Y_train_b, y_train_b, \
-X_val_b,   Y_val_b,   y_val_b,   \
-X_test_b,  Y_test_b,  y_test_b   = LoadAllBatches()
+# rng.bit_generator.state = BitGen(seed).state
+# bonus_net = {}
+# bonus_net['W'] = 0.01 * rng.standard_normal(size=(K, d))
+# bonus_net['b'] = np.zeros((K, 1))
  
-print('\n--- Bonus 2.1(a): All batches loaded ---')
-print('X_train_b shape:', X_train_b.shape, '  expected: (3072, 49000)')
-print('X_val_b   shape:', X_val_b.shape,   '  expected: (3072, 1000)')
-print('X_test_b  shape:', X_test_b.shape,  '  expected: (3072, 10000)')    
+# GDparams_bonus = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
+ 
+# trained_bonus, train_losses_b, val_losses_b, train_costs_b, val_costs_b = MiniBatchGD(
+#     X_train_b, Y_train_b, X_val_b, Y_val_b,
+#     GDparams_bonus, bonus_net, lam=0.01, rng=rng, augment=True)
+ 
+# # test accuracy
+# P_bonus  = ApplyNetwork(X_test_b, trained_bonus)
+# acc_bonus = ComputeAccuracy(P_bonus, y_test_b)
+# print(f'\nBonus test accuracy: {acc_bonus:.4f}  (baseline was 0.3913)')
+ 
+# # plot and visualize
+# PlotLossCurves(train_losses_b, val_losses_b, train_costs_b, val_costs_b,
+#                title='Bonus: all batches + augmentation, lam=0.01, eta=0.001')
+# VisualizeWeights(trained_bonus, title='Bonus: all batches + augmentation')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Bonus 2.1(a+b+d) — All batches + augmentation + learning rate decay
+# ══════════════════════════════════════════════════════════════════════════
+ 
+print('\n--- Bonus training: all batches + augmentation + lr decay ---')
+ 
+# fresh network
+rng.bit_generator.state = BitGen(seed).state
+bonus_net2 = {}
+bonus_net2['W'] = 0.01 * rng.standard_normal(size=(K, d))
+bonus_net2['b'] = np.zeros((K, 1))
+ 
+# decay eta by 10 every 20 epochs: 0.001 → 0.0001 → 0.00001
+GDparams_bonus2 = {'n_batch': 100, 'eta': 0.001, 'n_epochs': 40}
+ 
+trained_bonus2, train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2 = MiniBatchGD(
+    X_train_b, Y_train_b, X_val_b, Y_val_b,
+    GDparams_bonus2, bonus_net2, lam=0.01, rng=rng,
+    augment=True, decay_every=20)
+ 
+# test accuracy
+P_bonus2   = ApplyNetwork(X_test_b, trained_bonus2)
+acc_bonus2 = ComputeAccuracy(P_bonus2, y_test_b)
+print(f'\nBonus test accuracy (a+b+d): {acc_bonus2:.4f}')
+print(f'Baseline:                     0.3913')
+print(f'With (a+b):                   0.4164')
+print(f'With (a+b+d):                 {acc_bonus2:.4f}')
+ 
+# plot
+PlotLossCurves(train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2,
+               title='Bonus a+b+d: augment + lr decay, lam=0.01')
+VisualizeWeights(trained_bonus2, title='Bonus a+b+d: augment + lr decay')
