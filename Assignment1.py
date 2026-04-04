@@ -2,10 +2,9 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ── Paths ──────────────────────────────────────────────────────────────────
+# Path
 DATASET_PATH = 'Datasets/cifar-10-batches-py/'
 
-# Load a batch of training data
 with open(DATASET_PATH + 'data_batch_1', 'rb') as fo:
     dict = pickle.load(fo, encoding='bytes')
 
@@ -306,7 +305,7 @@ print('Relative error grad_b:', err_b, '  correct: < 1e-6')
 print('grad_W OK:', err_W < 1e-6)
 print('grad_b OK:', err_b < 1e-6)
 
-# ── Also test with lam > 0 ─────────────────────────────────────────────────
+# Also test with lam > 0
 lam = 0.1
 my_grads_reg    = backwardPass(X_small, Y_small, P_small, small_net, lam)
 torch_grads_reg = computeGradsWithTorchLam(X_small, y_small, small_net, lam)
@@ -366,7 +365,7 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
             X_batch = X_shuffled[:, j_start:j_end]   # (d, n_batch)
             Y_batch = Y_shuffled[:, j_start:j_end]   # (K, n_batch)
 
-              # ── Bonus 2.1(b): flip
+              #Bonus 2.1(b): flip
             if augment:
                 for i in range(X_batch.shape[1]):
                     if rng.random() < 0.5:
@@ -381,9 +380,7 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
             # update W and b — equations (8, 9)
             trained_net['W'] -= eta * grads['W']
             trained_net['b'] -= eta * grads['b']
-
-        # ── compute and save loss after each epoch ─────────────────────
-        # training loss
+        # Record losses and costs after each epoch
         P_train    = applyNetwork(X, trained_net)
         train_loss = computeLoss(P_train, np.argmax(Y, axis=0))
         train_cost = train_loss + lam * np.sum(trained_net['W'] ** 2)
@@ -401,7 +398,7 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
 
         print(f'Epoch {epoch+1}/{n_epochs} — train cost: {train_cost:.4f}  val cost: {val_cost:.4f}')
 
-        # ── Part (d): step decay — reduce eta every decay_every epochs ─
+        #decay add
         if decay_every is not None and (epoch + 1) % decay_every == 0:
             eta = eta / 10
             print(f'  → learning rate decayed to {eta:.6f}')
@@ -409,7 +406,7 @@ def miniBatchGD(X, Y, X_val, Y_val, GDparams, init_net, lam, rng, augment=False,
     return trained_net, train_losses, val_losses, train_costs, val_costs
 
 # bonus 2.2 — MiniBatchGD with BCE loss and sigmoid outputs
-def MiniBatchGDBCE(X, Y, y, X_val, Y_val, y_val,
+def miniBatchGDBCE(X, Y, y, X_val, Y_val, y_val,
                    GDparams, init_net, lam, rng):
     
     n_batch  = GDparams['n_batch']
@@ -581,7 +578,7 @@ def runExperiment(X_train, Y_train, y_train,
     return acc_test
 
 
-# ── Run all 4 experiments 
+# Complete experiments 
 experiments = [
     {'lam': 0,   'eta': 0.1,   'n_epochs': 40, 'n_batch': 100},
     {'lam': 0,   'eta': 0.001, 'n_epochs': 40, 'n_batch': 100},
@@ -605,7 +602,7 @@ print('\n--- Summary of all experiments ---')
 for exp, acc in results:
     print(f"lam={exp['lam']}, eta={exp['eta']} → test accuracy: {acc:.4f}")
 
-def LoadAllBatches():
+def loadAllBatches():
     # load all 5 batches and concatenate
     X_all, Y_all, y_all = [], [], []
     for i in range(1, 6):
@@ -634,7 +631,7 @@ def LoadAllBatches():
     return X_train_b, Y_train_b, y_train_b, X_val_b, Y_val_b, y_val_b, X_test_b, Y_test_b, y_test_b
 
 
-X_train_b, Y_train_b, y_train_b, X_val_b,   Y_val_b,   y_val_b,   X_test_b,  Y_test_b,  y_test_b   = LoadAllBatches()
+X_train_b, Y_train_b, y_train_b, X_val_b,   Y_val_b,   y_val_b,   X_test_b,  Y_test_b,  y_test_b   = loadAllBatches()
  
 print('\n--- Bonus training 1 -----')
  
@@ -692,7 +689,7 @@ plotLossCurves(train_losses_b2, val_losses_b2, train_costs_b2, val_costs_b2,
 visualizeWeights(trained_bonus2, title='Bonus a+b+d: augment + lr decay')
 
 
-def PlotBCEHistogram(P, y, title='BCE Histogram'):
+def plotBCEHistogram(P, y, title='BCE Histogram'):
     n = P.shape[1]
     true_class_probs = P[y, np.arange(n)]
     
@@ -725,9 +722,9 @@ def PlotBCEHistogram(P, y, title='BCE Histogram'):
 
 # Bonus 2.3 — Plot histogram of predicted probabilities for correct vs incorrect classifications
 P_final = applyNetworkBCE(X_test_b, trained_bonus2)
-PlotBCEHistogram(P_final, y_test_b, title='Bonus 2.3: BCE Probabilities for Correct vs Incorrect')
+plotBCEHistogram(P_final, y_test_b, title='Bonus 2.3: BCE Probabilities for Correct vs Incorrect')
 
-def RunExperimentBCE(X_train, Y_train, y_train,
+def runExperimentBCE(X_train, Y_train, y_train,
                      X_val, Y_val, y_val,
                      X_test, Y_test, y_test,
                      lam, eta, n_epochs, n_batch,
@@ -746,7 +743,7 @@ def RunExperimentBCE(X_train, Y_train, y_train,
     init_net['b'] = np.zeros((K, 1))
 
     # 2. Train using MiniBatchGD but with BCE functions
-    trained_net, train_losses, val_losses, train_costs, val_costs = MiniBatchGDBCE(
+    trained_net, train_losses, val_losses, train_costs, val_costs = miniBatchGDBCE(
         X_train, Y_train, y_train,
         X_val,   Y_val,   y_val,
         GDparams={'n_batch': n_batch, 'eta': eta, 'n_epochs': n_epochs},
@@ -765,12 +762,12 @@ def RunExperimentBCE(X_train, Y_train, y_train,
                    train_costs, val_costs, title)
 
     # 5. Plot histogram
-    PlotBCEHistogram(P_test, y_test, title=f'{title}_Histogram')
+    plotBCEHistogram(P_test, y_test, title=f'{title}_Histogram')
 
     return trained_net, test_acc   
 
 
-trained_net_bce, acc_bce = RunExperimentBCE(
+trained_net_bce, acc_bce = runExperimentBCE(
     X_train, Y_train, y_train,
     X_val,   Y_val,   y_val,
     X_test,  Y_test,  y_test,
