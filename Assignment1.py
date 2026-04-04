@@ -84,7 +84,6 @@ print('std_X  shape:', std_X.shape,  '  correct: (3072, 1)')
 K = 10
 d = X_train.shape[0]  
 
-# seed=42 as assignment suggests)
 rng = np.random.default_rng()
 BitGen = type(rng.bit_generator)
 seed = 42
